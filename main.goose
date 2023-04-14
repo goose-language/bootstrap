@@ -1,7 +1,7 @@
-import "std/modules/array.goose"
+// import "std/modules/array.goose"
 import "std/modules/IO.goose"
-import "std/modules/regex.goose"
-import "std/modules/type.goose"
+// import "std/modules/regex.goose"
+// import "std/modules/type.goose"
 
 // Lexer related imports
 import "modules/lexer.goose"
@@ -15,10 +15,10 @@ import "parser/toplevel.goose"
 
 def main() do
   def content = IO::readFile("example/main.goose")
-  IO::println(content)
-  def base = Tokens::init()
+  def base = mutable Tokens::init()
   def rules = Tokens::addReserved(base, ["enum", "end", "public", "module", "def", "for", "in", "do", "while", "break", "if", "then", "else", "import", "extern", "return", "declare", "fun", "match", "type"])
-  def tokens = Lexer::tokenize(rules, content)
+  def tokens = Lexer::tokenize(*rules, content)
+
   match Toplevel::parseFunction()(tokens) do
     Tuple(Right(res), tokens) -> do
       IO::println(res)
