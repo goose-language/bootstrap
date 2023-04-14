@@ -114,6 +114,30 @@ public module Expression
     )
   end
 
+  def parseLambda() do
+    return Parser::bind(
+      Parser::andThen(
+        Parser::reserved("fun"),
+        Parser::andThenBoundLazy(
+          fun() Parser::between(
+            Parser::token("lparen"),
+            Parser::token("rparen"),
+            Parser::sepBy(Parser::token("identifier"), Parser::token("comma"))
+          ),
+          fun() Operator::expression(Expression::parseExpression)
+        )
+      ),
+      fun(expr) do
+        match expr do
+          Tuple(args, body) -> do
+            def args_ = Array::map(args, fun(x) x.value)
+            return Parser::return_(AST::Lambda(args_, body))
+          end
+        end
+      end
+    )
+  end
+
   def parseDef() do
     return Parser::bind(
       Parser::andThen(
@@ -149,6 +173,7 @@ public module Expression
     return Parser::choice([
       Expression::parseDef(),
       Expression::parseLiteral(),
+      Expression::parseLambda(),
       Expression::parseCall(),
       Expression::parseIdentifier(),
       Expression::parseDoExpression(),
