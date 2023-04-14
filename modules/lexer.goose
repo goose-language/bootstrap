@@ -1,3 +1,5 @@
+import "std/modules/array.goose"
+import "std/modules/regex.goose"
 
 module Lexer 
   def tokenize[a](rules: [{ type_: string, regex: string, ignore: bool }], input: string) do
