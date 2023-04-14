@@ -3,7 +3,7 @@
 #include "/Volumes/Programmation/Goose/goose/std/core/list.h"
 #include <stdlib.h>
 
-Value* String_toInteger(Value* args) {
-  Value* string = index_(args, 0);
-  return integer(atoi(toString(string)));
+nanbox_t String_toInteger(nanbox_t args) {
+  nanbox_t string = index_(args, 0);
+  return integer(atoi(decode_string(string)));
 }

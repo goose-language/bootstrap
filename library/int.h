@@ -1,3 +1,3 @@
 #include "/Volumes/Programmation/Goose/goose/std/core/value.h"
 
-Value* String_toInteger(Value* args);
+nanbox_t String_toInteger(nanbox_t args);
