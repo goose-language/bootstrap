@@ -1,7 +1,9 @@
-def test(test, bruh) do
-  def x = 5 + 5  
-  5 + 5
-  def factorial = fun(x) do
-    x
+module test
+  import "test"
+  import "bruh" as T
+  public def facto(n) do
+    for i in text.x + 5 do
+      i = i + 1
+    end
   end
 end
