@@ -2,6 +2,8 @@ import "parser/ast.goose"
 import "parser/literal.goose"
 import "library/string.goose"
 import "parser/operator.goose"
+import "parser/pattern.goose"
+import "parser/namespaced.goose"
 
 public module Expression 
   declare parseExpression[a](): a
@@ -14,25 +16,10 @@ public module Expression
         Parser::lazyMany(fun() Operator::expression(Expression::parseExpression))),
       fun (x) return Parser::return_(AST::Sequence(x))
     )
-  
-  def parseNamespaced() do
-    return Parser::choice([
-      Parser::bind(
-        Parser::sepBy1(
-          Parser::token("identifier"),
-          Parser::string("::")),
-        fun(x) do
-          def paths = Array::map(Array::sliceFromTo(x, 0, Array::length(x) - 1), fun(x) x.value)
-          def name = x[Array::length(x) - 1].value
-          return Parser::return_(if Array::empty(paths) then Simple(name) else Namespace(paths, name))
-        end
-      )
-    ])
-  end
 
   def parseIdentifier() 
     return Parser::bind(
-      Expression::parseNamespaced(),
+      parseNamespaced(),
       fun (x) return Parser::return_(AST::Identifier(x))
     )
 
@@ -86,16 +73,18 @@ public module Expression
     return Parser::bind(
       Parser::andThenBoundLazy(
         Expression::parseCallee,
-        fun() Parser::between(
-          Parser::token("lparen"),
-          Parser::token("rparen"),
-          Parser::lazySepBy(fun() Operator::expression(Expression::parseExpression), fun() Parser::token("comma"))
+        fun() Parser::many(
+          Parser::between(
+            Parser::token("lparen"),
+            Parser::token("rparen"),
+            Parser::lazySepBy(fun() Operator::expression(Expression::parseExpression), fun() Parser::token("comma"))
+          )
         )
       ),
       fun(expr) do
         match expr do
           Tuple(callee, args) -> do
-            return Parser::return_(AST::Call(callee, args))
+            return Parser::return_(Array::reduce(args, callee, fun(acc, x) AST::Call(acc, x)))
           end
         end
       end
@@ -110,6 +99,53 @@ public module Expression
       ),
       fun(expr) do
         return Parser::return_(AST::Return(expr))
+      end
+    )
+  end
+
+  def parseList() do
+    return Parser::bind(
+      Parser::between(
+        Parser::string("["),
+        Parser::string("]"),
+        Parser::lazySepBy(fun() Operator::expression(Expression::parseExpression), fun() Parser::token("comma"))
+      ),
+      fun(expr) do
+        return Parser::return_(AST::List(expr))
+      end
+    )
+  end
+
+  def parseStructure() do
+    return Parser::bind(
+      Parser::andThen(
+        Parser::string("\{"),
+        Parser::andThenBoundLazy(
+          fun() Parser::lazySepBy(
+            fun() Parser::andThenBoundLazy(
+              fun() Parser::token("identifier"),
+              fun() Parser::andThenLazy(
+                fun() Parser::string(":"),
+                fun() Operator::expression(Expression::parseExpression)
+              )
+            ),
+            fun() Parser::token("comma")
+          ),
+          fun() Parser::string("}")
+        )
+      ),
+      fun(exprs) do
+        match exprs do
+          Tuple(fields, _) -> do
+            def fields_ = Array::map(fields, fun(e) do
+              match e do
+                Tuple({ value: name }, value) -> 
+                  return Tuple(name, value)
+              end
+            end)
+            return Parser::return_(AST::Structure(fields_))
+          end
+        end
       end
     )
   end
@@ -168,11 +204,133 @@ public module Expression
       end
     )
   end
+  
+  def patternMatch() do
+    return Parser::bind(
+      Parser::andThen(
+        Parser::reserved("match"),
+        Parser::andThenBoundLazy(
+          fun() Operator::expression(Expression::parseExpression),
+          fun() Parser::andThenLazy(
+            fun() Parser::reserved("do"),
+            fun() Parser::andThenBoundLazy(
+              fun() Parser::sepBy(
+                Parser::andThenBound(
+                  Pattern::pattern(),
+                  Parser::andThenLazy(
+                    fun() Parser::token("match"),
+                    fun() Operator::expression(Expression::parseExpression)
+                  )
+                ),
+                Parser::token("comma")
+              ),
+              fun() Parser::reserved("end")
+            )
+          )
+        )
+      ),
+      fun(matches) do
+        match matches do
+          Tuple(expr, Tuple(cases, _)) -> do
+            def cases_ = Array::map(cases, fun(x) do
+              match x do
+                Tuple(pattern, value) -> 
+                  return Tuple(pattern, value)
+              end
+            end)
+            return Parser::return_(AST::Match(expr, cases_))
+          end
+        end
+      end
+    )
+  end
+
+  def parseWhile() do
+    return Parser::bind(
+      Parser::andThen(
+        Parser::reserved("while"),
+        Parser::andThenBoundLazy(
+          fun() Operator::expression(Expression::parseExpression),
+          fun() Parser::andThen(
+            Parser::reserved("do"),
+            Parser::andThenBound(
+              Parser::lazyMany(fun() Operator::expression(Expression::parseExpression)),
+              Parser::reserved("end")
+            )
+          )
+        )
+      ),
+      fun(expr) do
+        match expr do
+          Tuple(condition, Tuple(body, _)) -> do
+            return Parser::return_(AST::While(condition, body))
+          end
+        end
+      end
+    )
+  end
+
+  def parseFor() do
+    return Parser::bind(
+      Parser::andThen(
+        Parser::reserved("for"),
+        Parser::andThenBoundLazy(
+          fun() Parser::token("identifier"),
+          fun() Parser::andThenLazy(
+            fun() Parser::reserved("in"),
+            fun() Parser::andThenBoundLazy(
+              fun() Operator::expression(Expression::parseExpression),
+              fun() Parser::andThen(
+                Parser::reserved("do"),
+                Parser::andThenBound(
+                  Parser::lazyMany(fun() Operator::expression(Expression::parseExpression)),
+                  Parser::reserved("end")
+                )
+              )
+            )
+          )
+        )
+      ),
+      fun(expr) do
+        match expr do
+          Tuple({ value: name }, Tuple(collection, Tuple(body, _))) -> do
+            return Parser::return_(AST::For(name, collection, body))
+          end
+        end
+      end
+    )
+  end
+
+  def parseUpdate() do
+    return Parser::bind(
+      Parser::andThenBound(
+        Parser::token("identifier"),
+        Parser::andThenLazy(
+          fun() Parser::string("="),
+          fun() Operator::expression(Expression::parseExpression)
+        )
+      ),
+      fun(expr) do
+        match expr do
+          Tuple({ value: name }, value) -> do
+            return Parser::return_(AST::Update(name, value))
+          end
+        end
+      end
+    )
+  end
 
   def parseExpression() do
     return Parser::choice([
       Expression::parseDef(),
+      Expression::parseUpdate(),
+      Expression::parseWhile(),
+      Expression::parseFor(),
       Expression::parseLiteral(),
+      Expression::patternMatch(),
+      Expression::parseReturn(),
+      Expression::parseList(),
+      Expression::parseStructure(),
       Expression::parseLambda(),
       Expression::parseCall(),
       Expression::parseIdentifier(),
