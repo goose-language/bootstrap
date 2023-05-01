@@ -1,3 +1,4 @@
+import "std/modules/datatypes/tuple.goose"
 type Name = string
 type Arguments = [string]
 
@@ -33,6 +34,14 @@ public module AST
     UStructureAccess(AST::Updated, string)
   end
 
+  enum Pattern
+    PVariable(Namespaced)
+    PList([AST::Pattern])
+    PStructure([Tuple[string, AST::Pattern]])
+    PWildcard
+    PLiteral(AST::Literal)
+  end
+
   enum Expression
     Binary(string, AST::Expression, AST::Expression)
     Literal(AST::Literal)
@@ -43,14 +52,14 @@ public module AST
     Return(AST::Expression)
     Lambda(Arguments, AST::Expression)
     Let(string, AST::Expression, AST::Expression)
-    Match(AST::Expression, [Tuple[AST::Expression, AST::Expression]])
+    Match(AST::Expression, [Tuple[AST::Pattern, AST::Expression]])
     List([AST::Expression])
     Structure([Tuple[string, AST::Expression]])
     StructureAccess(AST::Expression, string)
     ListAccess(AST::Expression, AST::Expression)
     While(AST::Expression, [AST::Expression])
     For(string, AST::Expression, [AST::Expression])
-    Update(AST::Updated, AST::Expression)
+    Update(string, AST::Expression)
   end
 
   enum Toplevel
