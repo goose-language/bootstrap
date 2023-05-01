@@ -1,9 +1,12 @@
-#include "/Volumes/Programmation/Goose/goose/std/core/value.h"
-#include "/Volumes/Programmation/Goose/goose/std/core/conversion.h"
-#include "/Volumes/Programmation/Goose/goose/std/core/list.h"
 #include <stdlib.h>
 
-nanbox_t String_toInteger(nanbox_t args) {
-  nanbox_t string = index_(args, 0);
+typedef uint64_t VALUE;
+
+extern VALUE index_(VALUE, int);
+extern char* decode_string(VALUE);
+extern VALUE integer(int);
+
+VALUE String_toInteger(VALUE args) {
+  VALUE string = index_(args, 1);
   return integer(atoi(decode_string(string)));
 }
