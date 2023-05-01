@@ -1,5 +1,7 @@
 import "library/string.goose"
-import "library/array.goose"
+import "std/modules/array.goose"
+import "std/modules/parser/parser.goose"
+import "parser/ast.goose"
 
 module Literal 
   def parseNumber() do
