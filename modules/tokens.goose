@@ -25,4 +25,7 @@ module Tokens
     rules = [{ type_: "reserved", regex: rules_ }] + rules
     return rules
   end
+
+  def base = Tokens::init()
+  def rules = Tokens::addReserved(Tokens::base, ["enum", "end", "public", "module", "def", "for", "in", "do", "while", "break", "if", "then", "else", "import", "extern", "return", "declare", "fun", "match", "type", "as"])
 end

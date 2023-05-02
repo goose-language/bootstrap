@@ -11,17 +11,20 @@ import "std/modules/datatypes/either.goose"
 import "std/modules/parser/parser.goose"
 import "parser/toplevel.goose"
 
+// Module resolving related imports
+import "resolving/module.goose"
+import "resolving/resolver.goose"
+
 def main() do
   def content = IO::readFile("example/main.goose")
-  def base = Tokens::init()
-  def rules = Tokens::addReserved(base, ["enum", "end", "public", "module", "def", "for", "in", "do", "while", "break", "if", "then", "else", "import", "extern", "return", "declare", "fun", "match", "type", "as"])
+  def rules = Tokens::rules
   def tokens = Lexer::tokenize(rules, content)
-
-  match Toplevel::parseToplevel()(tokens) do
-    Tuple(Right(res), tokens) -> do
-      IO::println(res)
-      IO::println(tokens)
-    end,
-    Tuple(Left(err), _) -> IO::println(err)
+  def res = parseGoose(tokens)
+  match res do
+    Left(err) -> IO::println("Error: " + err),
+    Right(ast) -> do
+      def resolved = Module::resolveImports(ast)
+      IO::println(resolved)
+    end
   end
 end
