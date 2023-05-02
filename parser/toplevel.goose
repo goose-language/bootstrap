@@ -113,3 +113,7 @@ module Toplevel
       Toplevel::parseImport()
     ])
 end
+
+def parseGoose(content) do
+  return runParser(Parser::many(Toplevel::parseToplevel()), content)
+end
